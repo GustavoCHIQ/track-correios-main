@@ -11,7 +11,7 @@ bot.onText(/\/start/, (msg) => {
 
     (async () => {
 
-        const browser = await puppeteer.launch({ headless: false });
+        const browser = await puppeteer.launch({ headless: 'new' });
         const page = await browser.newPage();
 
         const url = "https://rastreamento.correios.com.br/core/securimage/securimage_show.php?" + Math.random();
@@ -24,6 +24,7 @@ bot.onText(/\/start/, (msg) => {
 
         bot.on('message', async (msg) => {
             if (!codigoCaptcha) {
+                // codigo do captcha
                 codigoCaptcha = msg.text;
                 if (codigoCaptcha) {
                     bot.sendMessage(chatId, "Digite o código de rastreio:");
@@ -43,24 +44,7 @@ bot.onText(/\/start/, (msg) => {
                     if (!json.eventos) {
                         bot.sendMessage(chatId, "Erro ao consultar o código de rastreio, tente novamente!");
                     } else {
-                        const eventos = json.eventos.map((evento) => {
-                            return evento.descricao;
-                        });
-
-                        const data = json.eventos.map((evento) => {
-                            // 2023-06-26 21:03:22.000000 -> 26/06/2023 21:03:22
-                            const data = evento.dtHrCriado.date.split(' ')[0].split('-').reverse().join('/');
-                            const hora = evento.dtHrCriado.date.split(' ')[1].split('.')[0];
-                            return `${data} ${hora}`;
-                        });
-
-                        const template = eventos.map((evento, index) => {
-                            return `${data[index]} - ${evento}`;
-                        });
-
-                        bot.sendMessage(chatId, template.join('\n'));
-
-
+                        bot.sendMessage(chatId, template(json));
                         try {
                             salvarArquivo(json);
                             apagarArquivo();
@@ -93,3 +77,44 @@ function salvarArquivo(json) {
         }
     });
 }
+
+// template de mensagens
+function template(json) {
+    const data = json.eventos.map((evento) => {
+        // xxxx-xx-xx 00:00:00.000000 -> 00/00/0000 00:00:00
+        const data = evento.dtHrCriado.date.split(' ')[0].split('-').reverse().join('/');
+        const hora = evento.dtHrCriado.date.split(' ')[1].split('.')[0];
+        return `${data} ${hora}`;
+    });
+
+    const origem = json.eventos.map((evento) => {
+        if (!evento.unidade.endereco.cidade || !evento.unidade.endereco.uf) {
+            if (!evento.unidade.nome) {
+                return evento.unidade.tipo;
+            } else {
+                return evento.unidade.nome;
+            }
+        }
+        return evento.unidade.tipo + ' - ' + evento.unidade.endereco.cidade + '/' + evento.unidade.endereco.uf;
+    });
+
+    const status = json.eventos.map((evento) => {
+        return evento.descricao;
+    });
+
+    const mensagem = data.map((data, index) => {
+        return `🗓️ Data: ${data}\n🏛️ Origem: ${origem[index]}\n📫 Status: ${status[index]}`;
+    })
+
+    return mensagem.join('\n\n');
+}
+
+// debugar json
+bot.onText(/\/debug/, (msg) => {
+    const chatId = msg.chat.id;
+    fs.readFile('resultado.json', 'utf8', function (err, data) {
+        if (err) throw err;
+        const json = JSON.parse(data);
+        bot.sendMessage(chatId, template(json));
+    });
+});
