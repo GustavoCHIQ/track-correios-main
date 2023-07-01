@@ -98,12 +98,28 @@ function template(json) {
         return evento.unidade.tipo + ' - ' + evento.unidade.endereco.cidade + '/' + evento.unidade.endereco.uf;
     });
 
+    const destino = json.eventos.map((evento) => {
+        if (!evento.unidadeDestino) {
+            return 'Destino não informado';
+        }
+
+        if (!evento.unidadeDestino.endereco.cidade || !evento.unidadeDestino.endereco.uf) {
+            if (!evento.unidadeDestino.nome) {
+                return evento.unidadeDestino.tipo;
+            } else {
+                return evento.unidadeDestino.nome;
+            }
+        }
+        return evento.unidadeDestino.tipo + ' - ' + evento.unidadeDestino.endereco.cidade + '/' + evento.unidadeDestino.endereco.uf;
+    });
+
+
     const status = json.eventos.map((evento) => {
         return evento.descricao;
     });
 
     const mensagem = data.map((data, index) => {
-        return `🗓️ Data: ${data}\n🏛️ Origem: ${origem[index]}\n📫 Status: ${status[index]}`;
+        return `🗓️ Data: ${data}\n🏛️ Origem: ${origem[index]}\n📫 Status: ${status[index]}\n🛬 Destino: ${destino[index]}`;
     })
 
     return mensagem.join('\n\n');
